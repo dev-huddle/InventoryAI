@@ -4,15 +4,19 @@ import type { LoginUser } from "../types/loginUser.type";
 import LoginValidationSchema from "../validation/validation";
 import Axios from "@/lib/axios";
 import { toast } from "@workspace/ui/hooks/use-toast";
+import { useRouter } from "next/navigation";
+import { setTokens } from "@/lib/utils";
 
 const useLogin = function () {
+    const router = useRouter();
+
     const { isPending, mutate } = useMutation({
         mutationKey: ["login-user"],
         mutationFn: async ({ email, password }: LoginUser) => {
-            const data = await Axios.post("/auth/login", { email, password })
-            return data
+            const { data } = await Axios.post("/auth/login", { email, password });
+            return data;
         }
-    })
+    });
 
     const formik = useFormik<LoginUser>({
         initialValues: {
@@ -23,21 +27,34 @@ const useLogin = function () {
         onSubmit: ({ email, password }) => {
             mutate({ email, password }, {
                 onSuccess(res) {
-                    console.log(res)
-                },
-                onError(err) {
+                  
+                    const { accessToken, refreshToken } = res.data;
+
+                    // Save tokens in session storage
+                    setTokens(accessToken, refreshToken);
+
                     toast({
-                        title: "Login Request",
-                        description: "Login failed, please try again!",
+                        title: "User successfully authenticated",
+                        description: "Authentication successful",
+                        variant: "default"
+                    });
+
+                    setTimeout(() => {
+                        // router.push("/dashboard");
+                    }, 1000);
+                },
+                onError(err: any) {
+                    toast({
+                        title: "Login failed",
+                        description: `${err.response.data.errors[0].message}`,
                         variant: "destructive"
-                    })
-                    console.log(err)
+                    });
                 }
-            })
+            });
         }
-    })
+    });
 
-    return { isPending, ...formik }
-}
+    return { isPending, ...formik };
+};
 
-export default useLogin
+export default useLogin;
